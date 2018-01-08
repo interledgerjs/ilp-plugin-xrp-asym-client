@@ -1,0 +1,24 @@
+{
+  "name": "ilp-plugin-xrp-asym-client",
+  "version": "0.0.1",
+  "description": "Asymmetric XRP paychan client for ILP",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "assert": "^1.4.1",
+    "base64url": "^2.0.0",
+    "bignumber.js": "^5.0.0",
+    "btp-packet": "^1.2.0",
+    "debug": "^3.1.0",
+    "ilp-plugin-btp": "^1.1.2",
+    "ilp-plugin-xrp-paychan-shared": "github:dappelt/ilp-plugin-xrp-paychan-shared",
+    "ripple-keypairs": "^0.10.1",
+    "ripple-lib": "^0.17.9",
+    "tweetnacl": "^1.0.0",
+    "ws": "^4.0.0"
+  }
+}
