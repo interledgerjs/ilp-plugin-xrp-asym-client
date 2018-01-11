@@ -1,13 +1,11 @@
+'use strict'
+
 const { deriveAddress, deriveKeypair } = require('ripple-keypairs')
 const { RippleAPI } = require('ripple-lib')
-const { URL } = require('url')
 const BtpPacket = require('btp-packet')
 const BigNumber = require('bignumber.js')
-const WebSocket = require('ws')
-const assert = require('assert')
 const debug = require('debug')('ilp-plugin-xrp-stateless')
 const BtpPlugin = require('ilp-plugin-btp')
-const base64url = require('base64url')
 const nacl = require('tweetnacl')
 const OUTGOING_CHANNEL_DEFAULT_AMOUNT_XRP = '10' // TODO: something lower?
 const {
@@ -300,7 +298,7 @@ class Plugin extends BtpPlugin {
     const channelProtocol = protocolMap.channel
 
     if (channelProtocol) {
-      debug('got notification of changing channel details')  
+      debug('got notification of changing channel details')
       const channel = channelProtocol
         .toString('hex')
         .toUpperCase()
