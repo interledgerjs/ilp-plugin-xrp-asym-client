@@ -5,7 +5,7 @@ const { RippleAPI } = require('ripple-lib')
 const URL = require('url').URL
 const BtpPacket = require('btp-packet')
 const BigNumber = require('bignumber.js')
-const debug = require('debug')('ilp-plugin-xrp-stateless')
+const debug = require('debug')('ilp-plugin-asym-client')
 const BtpPlugin = require('ilp-plugin-btp')
 const nacl = require('tweetnacl')
 const OUTGOING_CHANNEL_DEFAULT_AMOUNT_XRP = '10' // TODO: something lower?
@@ -97,7 +97,7 @@ class Plugin extends BtpPlugin {
   async _connect () {
     if (this._server) {
       const parsedServer = new URL(this._server)
-      if (isPassCompromised(parsedServer.password)) {
+      if (await isPassCompromised(parsedServer.password)) {
         debug('WARNING: Your password is compromised. Choose a random, strong password.')
       }
     }

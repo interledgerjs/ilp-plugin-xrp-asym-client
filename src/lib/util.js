@@ -1,7 +1,7 @@
 'use strict'
 
 const crypto = require('crypto')
-const debug = require('debug')('ilp-plugin-btp:util')
+const debug = require('debug')('ilp-plugin-asym-client:util')
 const fetch = require('node-fetch')
 
 async function isPassCompromised (pass) {
