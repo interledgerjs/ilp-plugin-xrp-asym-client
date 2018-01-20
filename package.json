@@ -1,6 +1,6 @@
 {
   "name": "ilp-plugin-xrp-asym-client",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "Asymmetric XRP paychan client for ILP",
   "main": "index.js",
   "scripts": {
