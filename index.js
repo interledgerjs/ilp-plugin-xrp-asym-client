@@ -17,9 +17,14 @@ const {
 
 class Plugin extends BtpPlugin {
   constructor (opts) {
-    super(opts)
+    // derive secret from HMAC of host and ripple secret, unless specified already
+    const parsedServer = new URL(opts.server)
+    parsedServer.password = parsedServer.password ||
+      util.hmac(util.hmac('parent_btp_uri', parsedServer.host), opts.secret).toString('hex')
+    const server = parsedServer.href
+
+    super(Object.assign({}, opts, { server }))
     this._currencyScale = 6
-    this._server = opts.server
 
     if (!opts.server || !opts.secret) {
       throw new Error('opts.server and opts.secret must be specified')
