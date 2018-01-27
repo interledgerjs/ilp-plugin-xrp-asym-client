@@ -197,25 +197,25 @@ class Plugin extends BtpPlugin {
       // don't accept any channel that isn't for us
       if (this._paychan.destination !== this._address) {
         await this._disconnect()
-        return reject(new Error('Fatal: Payment channel destination is not ours; Our connector is likely malicious'))
+        throw new Error('Fatal: Payment channel destination is not ours; Our connector is likely malicious')
       }
 
       // don't accept any channel that can be closed too fast
       if (this._paychan.settleDelay < util.MIN_SETTLE_DELAY) {
         await this._disconnect()
-        return reject(new Error('Fatal: Payment channel settle delay is too short; Our connector is likely malicious'))
+        throw new Error('Fatal: Payment channel settle delay is too short; Our connector is likely malicious')
       }
 
       // don't accept any channel that is closing
       if (this._paychan.expiration) {
         await this._disconnect()
-        return reject(new Error('Fatal: Payment channel is already closing; Our connector is likely malicious'))
+        throw new Error('Fatal: Payment channel is already closing; Our connector is likely malicious')
       }
 
       // don't accept any channel with a static cancel time
       if (this._paychan.cancelAfter) {
         await this._disconnect()
-        return reject(new Error('Fatal: Payment channel has a hard cancel; Our connector is likely malicious'))
+        throw new Error('Fatal: Payment channel has a hard cancel; Our connector is likely malicious')
       }
 
       this._bestClaim = {
@@ -424,7 +424,7 @@ class Plugin extends BtpPlugin {
     })
   }
 
-  _handleMoney (from, { requestId, data }) {
+  async _handleMoney (from, { requestId, data }) {
     const transferAmount = data.amount
     const primary = data.protocolData[0]
 
@@ -434,7 +434,7 @@ class Plugin extends BtpPlugin {
       const encodedClaim = util.encodeClaim(amount, this._clientChannel)
       const addedMoney = new BigNumber(amount).minus(lastAmount)
 
-      if (!addedMoney.equals(amount)) {
+      if (!addedMoney.equals(transferAmount)) {
         debug('warning: peer balance is out of sync with ours. peer thinks they sent ' +
           transferAmount + '; we got ' + addedMoney.toString())
       }
