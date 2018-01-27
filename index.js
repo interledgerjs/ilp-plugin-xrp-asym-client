@@ -429,14 +429,28 @@ class Plugin extends BtpPlugin {
     const primary = data.protocolData[0]
 
     if (primary.protocolName === 'claim') {
-      const nextAmount = new BigNumber(this._bestClaim.amount).add(transferAmount)
+      const lastAmount = new BigNumber(this._bestClaim.amount)
       const { amount, signature } = JSON.parse(primary.data.toString())
       const encodedClaim = util.encodeClaim(amount, this._clientChannel)
+      const addedMoney = new BigNumber(amount).minus(lastAmount)
 
-      if (nextAmount.greaterThan(amount)) {
-        debug('expected claim for', nextAmount.toString(), 'got', amount)
-        throw new Error('Got a claim that was too low. Expected ' +
-          nextAmount.toString() + ' got ' + amount)
+      if (!addedMoney.equals(amount)) {
+        debug('warning: peer balance is out of sync with ours. peer thinks they sent ' +
+          transferAmount + '; we got ' + addedMoney.toString())
+      }
+
+      if (lastAmount.gte(amount)) {
+        throw new Error('got claim that was lower than our last claim.' +
+          ' lastAmount=' + lastAmount.toString() +
+          ' amount=' + amount)
+      }
+
+      const channelAmount = util.xrpToDrops(this._paychan.amount)
+      if (new BigNumber(amount).gt(channelAmount)) {
+        debug('got claim for amount larger than max. amount=' + amount,
+          'max=' + channelAmount)
+        throw new Error('got claim for amount larger than max. amount=' + amount +
+          ' max=' + channelAmount)
       }
 
       try {
@@ -458,7 +472,13 @@ class Plugin extends BtpPlugin {
           return this._store.put(this._clientChannel, JSON.stringify(this._bestClaim))
         })
       }
+
+      if (this._moneyHandler) {
+        await this._moneyHandler(addedMoney.toString())
+      }
     }
+
+    return []
   }
 }
 
