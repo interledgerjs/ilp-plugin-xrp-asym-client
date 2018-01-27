@@ -4,7 +4,7 @@ const { deriveAddress, deriveKeypair } = require('ripple-keypairs')
 const { RippleAPI } = require('ripple-lib')
 const BtpPacket = require('btp-packet')
 const BigNumber = require('bignumber.js')
-const debug = require('debug')('ilp-plugin-xrp-stateless')
+const debug = require('debug')('ilp-plugin-xrp-asym-client')
 const BtpPlugin = require('ilp-plugin-btp')
 const nacl = require('tweetnacl')
 const OUTGOING_CHANNEL_DEFAULT_AMOUNT_XRP = '10' // TODO: something lower?
@@ -59,8 +59,6 @@ class Plugin extends BtpPlugin {
     const signedTx = this._api.sign(tx.txJSON, this._secret)
     const result = await this._api.submit(signedTx.signedTransaction)
 
-    console.log('SIGNED TX:', signedTx, result)
-
     debug('submitted outgoing channel tx to validator')
     if (result.resultCode !== 'tesSUCCESS') {
       const message = 'Error creating the payment channel: ' + result.resultCode + ' ' + result.resultMessage
@@ -74,8 +72,6 @@ class Plugin extends BtpPlugin {
       const handleTransaction = (ev) => {
         if (ev.transaction.SourceTag !== txTag) return
         if (ev.transaction.Account !== this._address) return
-
-        console.log('MADE CHANNEL:', ev)
 
         debug('transaction complete')
         const channel = util.computeChannelId(
