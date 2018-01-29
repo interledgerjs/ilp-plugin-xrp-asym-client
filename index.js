@@ -18,7 +18,8 @@ class Plugin extends BtpPlugin {
     // derive secret from HMAC of host and ripple secret, unless specified already
     const parsedServer = new URL(opts.server)
     parsedServer.password = parsedServer.password ||
-      util.hmac(util.hmac('parent_btp_uri', parsedServer.host), opts.secret).toString('hex')
+      util.hmac(util.hmac('parent_btp_uri', parsedServer.host + parsedServer.username),
+        opts.secret).toString('hex')
     const server = parsedServer.href
 
     super(Object.assign({}, opts, { server }))
