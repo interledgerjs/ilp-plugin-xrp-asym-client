@@ -1,5 +1,6 @@
 'use strict'
 
+const { URL } = require('url')
 const { deriveAddress, deriveKeypair } = require('ripple-keypairs')
 const { RippleAPI } = require('ripple-lib')
 const BtpPacket = require('btp-packet')
