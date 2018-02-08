@@ -270,7 +270,7 @@ class Plugin extends BtpPlugin {
   async _claimFunds () {
     if (this._bestClaim.amount === '0') return
     if (this._bestClaim.amount === util.xrpToDrops(this._paychan.balance)) return
-    if (!this._lastClaimedAmount.lessThan(this._bestClaim.amount)) return
+    if (!this._lastClaimedAmount.lt(this._bestClaim.amount)) return
 
     debug('starting claim. amount=' + this._bestClaim.amount)
     this._lastClaimedAmount = new BigNumber(this._bestClaim.amount)
@@ -364,7 +364,7 @@ class Plugin extends BtpPlugin {
       debug('signing first claim')
     }
 
-    const amount = new BigNumber(this._lastClaim.amount).add(transferAmount).toString()
+    const amount = new BigNumber(this._lastClaim.amount).plus(transferAmount).toString()
     const newClaimEncoded = util.encodeClaim(amount, this._channel)
     const signature = Buffer
       .from(nacl.sign.detached(newClaimEncoded, this._keyPair.secretKey))
@@ -374,7 +374,7 @@ class Plugin extends BtpPlugin {
     const aboveThreshold = new BigNumber(util
       .xrpToDrops(this._channelDetails.amount))
       .minus(util.xrpToDrops(OUTGOING_CHANNEL_DEFAULT_AMOUNT_XRP / 2))
-      .lessThan(amount)
+      .lt(amount)
 
     // if the claim we're signing is for more than half the channel's balance, add some funds
     // TODO: should there be a balance check to make sure we have enough to fund the channel?
