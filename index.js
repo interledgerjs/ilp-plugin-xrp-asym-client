@@ -441,7 +441,7 @@ class Plugin extends BtpPlugin {
       const encodedClaim = util.encodeClaim(amount, this._clientChannel)
       const addedMoney = new BigNumber(amount).minus(lastAmount)
 
-      if (!addedMoney.equals(transferAmount)) {
+      if (!addedMoney.isEqualTo(transferAmount)) {
         debug('warning: peer balance is out of sync with ours. peer thinks they sent ' +
           transferAmount + '; we got ' + addedMoney.toString())
       }
