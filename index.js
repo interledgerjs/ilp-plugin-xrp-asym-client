@@ -348,7 +348,7 @@ class Plugin extends BtpPlugin {
 
     // If they say we haven't sent them anything yet, it doesn't matter
     // whether they possess a valid claim to say that.
-    if (this._lastClaim.amount !== '0') {
+    if (this._lastClaim.amount !== this._channelDetails.balance) {
       try {
         nacl.sign.detached.verify(
           encodedClaim,
@@ -361,7 +361,7 @@ class Plugin extends BtpPlugin {
         throw new Error('Our last outgoing signature for ' + this._lastClaim.amount + ' is invalid')
       }
     } else {
-      debug('signing first claim')
+      debug('signing claim based on channel balance.')
     }
 
     const amount = new BigNumber(this._lastClaim.amount).plus(transferAmount).toString()
@@ -416,6 +416,9 @@ class Plugin extends BtpPlugin {
           this._funding = false
         })
     }
+
+    debug('setting new claim. amount=' + amount)
+    this._lastClaim = { amount, signature }
 
     return this._call(null, {
       type: BtpPacket.TYPE_TRANSFER,
