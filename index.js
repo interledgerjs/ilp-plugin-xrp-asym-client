@@ -349,15 +349,20 @@ class Plugin extends BtpPlugin {
     // If they say we haven't sent them anything yet, it doesn't matter
     // whether they possess a valid claim to say that.
     if (this._lastClaim.amount !== this._channelDetails.balance) {
+      let isValid = false
       try {
-        nacl.sign.detached.verify(
+        isValid = nacl.sign.detached.verify(
           encodedClaim,
           Buffer.from(this._lastClaim.signature, 'hex'),
           this._keyPair.publicKey
         )
       } catch (err) {
+        debug('verifying signature failed:', err.message)
+      }
+
+      if (!isValid) {
         // TODO: if these get out of sync, all subsequent transfers of money will fail
-        debug('invalid claim signature for', this._lastClaim.amount, err)
+        debug('invalid claim signature for', this._lastClaim.amount)
         throw new Error('Our last outgoing signature for ' + this._lastClaim.amount + ' is invalid')
       }
     } else {
