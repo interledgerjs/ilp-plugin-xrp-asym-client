@@ -16,7 +16,7 @@
     "btp-packet": "^1.2.0",
     "debug": "^3.1.0",
     "ilp-plugin-btp": "^1.1.6",
-    "ilp-plugin-xrp-paychan-shared": "github:sharafian/ilp-plugin-xrp-paychan-shared",
+    "ilp-plugin-xrp-paychan-shared": "^1.0.0",
     "ripple-keypairs": "^0.10.1",
     "ripple-lib": "^0.17.9",
     "tweetnacl": "^1.0.0",
