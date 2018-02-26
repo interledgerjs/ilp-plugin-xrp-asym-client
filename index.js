@@ -24,7 +24,7 @@ class Plugin extends BtpPlugin {
     const server = parsedServer.href
 
     super(Object.assign({}, opts, { server }))
-    this._currencyScale = 6
+    this._currencyScale = opts.currencyScale || 6
 
     if (!opts.server || !opts.secret) {
       throw new Error('opts.server and opts.secret must be specified')
@@ -47,6 +47,18 @@ class Plugin extends BtpPlugin {
     this._ws = null
 
     // this.on('incoming_reject', this._handleIncomingReject.bind(this))
+  }
+
+  xrpToBase (amount) {
+    return new BigNumber(amount)
+      .mul(Math.pow(10, this._currencyScale))
+      .toString()
+  }
+
+  baseToXrp (amount) {
+    return new BigNumber(amount)
+      .div(Math.pow(10, this._currencyScale))
+      .toFixed(6, BigNumber.ROUND_UP)
   }
 
   sendTransfer () {}
@@ -112,6 +124,11 @@ class Plugin extends BtpPlugin {
 
     const info = JSON.parse(infoResponse.protocolData[0].data.toString())
     debug('got info:', info)
+
+    if (this._currencyScale !== 6 && info.currencyScale !== this._currencyScale) {
+      throw new Error('Fatal! Currency scale mismatch. this=' + this._currencyScale +
+        ' peer=' + (info.currencyScale || 6))
+    }
 
     this._account = info.account
     this._prefix = info.prefix
@@ -344,11 +361,12 @@ class Plugin extends BtpPlugin {
     // but then the latency would effectively double.
 
     debug('given last claim of', this._lastClaim)
-    const encodedClaim = util.encodeClaim(this._lastClaim.amount, this._channel)
+    const dropAmount = util.xrpToDrops(this.baseToXrp(this._lastClaim.amount))
+    const encodedClaim = util.encodeClaim(dropAmount, this._channel)
 
     // If they say we haven't sent them anything yet, it doesn't matter
     // whether they possess a valid claim to say that.
-    if (this._lastClaim.amount !== this._channelDetails.balance) {
+    if (dropAmount !== this._channelDetails.balance) {
       let isValid = false
       try {
         isValid = nacl.sign.detached.verify(
@@ -362,15 +380,16 @@ class Plugin extends BtpPlugin {
 
       if (!isValid) {
         // TODO: if these get out of sync, all subsequent transfers of money will fail
-        debug('invalid claim signature for', this._lastClaim.amount)
-        throw new Error('Our last outgoing signature for ' + this._lastClaim.amount + ' is invalid')
+        debug('invalid claim signature for', dropAmount)
+        throw new Error('Our last outgoing signature for ' + dropAmount + ' is invalid')
       }
     } else {
       debug('signing claim based on channel balance.')
     }
 
     const amount = new BigNumber(this._lastClaim.amount).plus(transferAmount).toString()
-    const newClaimEncoded = util.encodeClaim(amount, this._channel)
+    const newDropAmount = util.xrpToDrops(this.baseToXrp(amount))
+    const newClaimEncoded = util.encodeClaim(newDropAmount, this._channel)
     const signature = Buffer
       .from(nacl.sign.detached(newClaimEncoded, this._keyPair.secretKey))
       .toString('hex')
@@ -379,7 +398,7 @@ class Plugin extends BtpPlugin {
     const aboveThreshold = new BigNumber(util
       .xrpToDrops(this._channelDetails.amount))
       .minus(util.xrpToDrops(OUTGOING_CHANNEL_DEFAULT_AMOUNT_XRP / 2))
-      .lt(amount)
+      .lt(newDropAmount)
 
     // if the claim we're signing is for more than half the channel's balance, add some funds
     // TODO: should there be a balance check to make sure we have enough to fund the channel?
@@ -446,7 +465,8 @@ class Plugin extends BtpPlugin {
     if (primary.protocolName === 'claim') {
       const lastAmount = new BigNumber(this._bestClaim.amount)
       const { amount, signature } = JSON.parse(primary.data.toString())
-      const encodedClaim = util.encodeClaim(amount, this._clientChannel)
+      const dropAmount = util.xrpToDrops(this.baseToXrp(amount))
+      const encodedClaim = util.encodeClaim(dropAmount, this._clientChannel)
       const addedMoney = new BigNumber(amount).minus(lastAmount)
 
       if (!addedMoney.isEqualTo(transferAmount)) {
@@ -461,10 +481,10 @@ class Plugin extends BtpPlugin {
       }
 
       const channelAmount = util.xrpToDrops(this._paychan.amount)
-      if (new BigNumber(amount).gt(channelAmount)) {
-        debug('got claim for amount larger than max. amount=' + amount,
+      if (new BigNumber(dropAmount).gt(channelAmount)) {
+        debug('got claim for amount larger than max. amount=' + dropAmount,
           'max=' + channelAmount)
-        throw new Error('got claim for amount larger than max. amount=' + amount +
+        throw new Error('got claim for amount larger than max. amount=' + dropAmount +
           ' max=' + channelAmount)
       }
 
@@ -475,8 +495,8 @@ class Plugin extends BtpPlugin {
           Buffer.from(this._paychan.publicKey.substring(2), 'hex')
         )
       } catch (err) {
-        debug('invalid claim signature for', amount)
-        throw new Error('Invalid claim signature for: ' + amount)
+        debug('invalid claim signature for', dropAmount)
+        throw new Error('Invalid claim signature for: ' + dropAmount)
       }
 
       debug('got new best claim for', amount)
