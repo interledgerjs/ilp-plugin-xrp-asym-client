@@ -33,17 +33,17 @@ const clientPlugin = new IlpPluginXrpAsymClient({
   server: 'btp+ws://:btp_secret@localhost:6666',
 
   // Rippled server for client use
-  xrpServer: 'wss://s.altnet.rippletest.net:51233'
+  xrpServer: 'wss://s.altnet.rippletest.net:51233',
 
   // XRP secret. The address can be dynamically determined from this,
   // or can be specified as a separate option.
-  secret: 'ss1oM64ccuJuX9utz5pdPRuu5QKMs'
+  secret: 'ss1oM64ccuJuX9utz5pdPRuu5QKMs',
 
   // A store can be optionally passed in to save claims in case of a crash.
   // If no store is present, then the best claim will be submitted on plugin
   // disconnect, as well as once every five minutes (interval is configurable
   // via claimInterval)
-  _store: new Store()
+  _store: new Store(),
 
   // Interval on which to claim funds from channel. Defaults to 5 minutes.
   claimInterval: 5 * 60 * 1000

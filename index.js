@@ -270,7 +270,7 @@ class Plugin extends BtpPlugin {
   async _claimFunds () {
     if (this._bestClaim.amount === '0') return
     if (this._bestClaim.amount === util.xrpToDrops(this._paychan.balance)) return
-    if (!this._lastClaimedAmount.lessThan(this._bestClaim.amount)) return
+    if (!this._lastClaimedAmount.lt(this._bestClaim.amount)) return
 
     debug('starting claim. amount=' + this._bestClaim.amount)
     this._lastClaimedAmount = new BigNumber(this._bestClaim.amount)
@@ -348,23 +348,28 @@ class Plugin extends BtpPlugin {
 
     // If they say we haven't sent them anything yet, it doesn't matter
     // whether they possess a valid claim to say that.
-    if (this._lastClaim.amount !== '0') {
+    if (this._lastClaim.amount !== this._channelDetails.balance) {
+      let isValid = false
       try {
-        nacl.sign.detached.verify(
+        isValid = nacl.sign.detached.verify(
           encodedClaim,
           Buffer.from(this._lastClaim.signature, 'hex'),
           this._keyPair.publicKey
         )
       } catch (err) {
+        debug('verifying signature failed:', err.message)
+      }
+
+      if (!isValid) {
         // TODO: if these get out of sync, all subsequent transfers of money will fail
-        debug('invalid claim signature for', this._lastClaim.amount, err)
+        debug('invalid claim signature for', this._lastClaim.amount)
         throw new Error('Our last outgoing signature for ' + this._lastClaim.amount + ' is invalid')
       }
     } else {
-      debug('signing first claim')
+      debug('signing claim based on channel balance.')
     }
 
-    const amount = new BigNumber(this._lastClaim.amount).add(transferAmount).toString()
+    const amount = new BigNumber(this._lastClaim.amount).plus(transferAmount).toString()
     const newClaimEncoded = util.encodeClaim(amount, this._channel)
     const signature = Buffer
       .from(nacl.sign.detached(newClaimEncoded, this._keyPair.secretKey))
@@ -374,7 +379,7 @@ class Plugin extends BtpPlugin {
     const aboveThreshold = new BigNumber(util
       .xrpToDrops(this._channelDetails.amount))
       .minus(util.xrpToDrops(OUTGOING_CHANNEL_DEFAULT_AMOUNT_XRP / 2))
-      .lessThan(amount)
+      .lt(amount)
 
     // if the claim we're signing is for more than half the channel's balance, add some funds
     // TODO: should there be a balance check to make sure we have enough to fund the channel?
@@ -417,6 +422,9 @@ class Plugin extends BtpPlugin {
         })
     }
 
+    debug('setting new claim. amount=' + amount)
+    this._lastClaim = { amount, signature }
+
     return this._call(null, {
       type: BtpPacket.TYPE_TRANSFER,
       requestId: await util._requestId(),
@@ -441,7 +449,7 @@ class Plugin extends BtpPlugin {
       const encodedClaim = util.encodeClaim(amount, this._clientChannel)
       const addedMoney = new BigNumber(amount).minus(lastAmount)
 
-      if (!addedMoney.equals(transferAmount)) {
+      if (!addedMoney.isEqualTo(transferAmount)) {
         debug('warning: peer balance is out of sync with ours. peer thinks they sent ' +
           transferAmount + '; we got ' + addedMoney.toString())
       }
