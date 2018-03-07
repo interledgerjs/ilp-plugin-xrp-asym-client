@@ -34,7 +34,7 @@
     "ilp-protocol-ildcp": "^1.0.0",
     "mocha": "^5.0.0",
     "nyc": "^11.4.1",
-    "sinon": "^4.3.0",
+    "sinon": "^3.3.0",
     "standard": "^10.0.3"
   }
 }
