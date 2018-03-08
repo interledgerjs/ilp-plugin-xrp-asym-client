@@ -67,7 +67,12 @@ describe('pluginSpec', () => {
 
         this.sinon.stub(nacl.sign, 'detached').returns('abcdef')
 
-        this.plugin._paychan = this.plugin._channelDetails = { amount: '10', balance: '1' }
+        this.plugin._paychan = this.plugin._channelDetails = {
+          amount: '10',
+          balance: '0.000001',
+          publicKey: 'edabcdef'
+        }
+
         this.plugin._keyPair = {}
         this.plugin._funding = true
         this.plugin._channel = 'abcdef'
@@ -96,7 +101,7 @@ describe('pluginSpec', () => {
 
         // we can't stub verify for some reason so we need to prevent
         // signature verification from happening
-        this.plugin._channelDetails.balance = '2'
+        this.plugin._channelDetails.balance = '0.000002'
 
         await this.plugin.sendMoney(100)
 
@@ -107,11 +112,10 @@ describe('pluginSpec', () => {
       })
 
       it('should handle a claim', async function () {
-        // this stub isn't working, which is why handleMoney is throwing
-        this.sinon.stub(nacl.sign.detached, 'verify').returns('abcdef')
+        this.sinon.stub(nacl.sign.detached, 'verify').returns(true)
         const encodeSpy = this.sinon.spy(util, 'encodeClaim')
 
-        await assert.isRejected(this.plugin._handleMoney(null, {
+        await this.plugin._handleMoney(null, {
           requestId: 1,
           data: {
             amount: '160',
@@ -124,7 +128,7 @@ describe('pluginSpec', () => {
               }))
             }]
           }
-        }), /Invalid claim signature/)
+        })
 
         assert.deepEqual(encodeSpy.getCall(0).args, [ '2', 'abcdef' ])
       })

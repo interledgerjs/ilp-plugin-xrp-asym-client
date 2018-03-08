@@ -125,7 +125,8 @@ class Plugin extends BtpPlugin {
     const info = JSON.parse(infoResponse.protocolData[0].data.toString())
     debug('got info:', info)
 
-    if (this._currencyScale !== 6 && info.currencyScale !== this._currencyScale) {
+    // if the info is from an old version and we use a non-default scale, or the versions match and our scales don't match
+    if ((info.currencyScale || 6) !== this._currencyScale) {
       throw new Error('Fatal! Currency scale mismatch. this=' + this._currencyScale +
         ' peer=' + (info.currencyScale || 6))
     }
@@ -366,7 +367,7 @@ class Plugin extends BtpPlugin {
 
     // If they say we haven't sent them anything yet, it doesn't matter
     // whether they possess a valid claim to say that.
-    if (dropAmount !== this._channelDetails.balance) {
+    if (this.baseToXrp(this._lastClaim.amount) !== this._channelDetails.balance) {
       let isValid = false
       try {
         isValid = nacl.sign.detached.verify(
@@ -488,13 +489,18 @@ class Plugin extends BtpPlugin {
           ' max=' + channelAmount)
       }
 
+      let isValid = false
       try {
-        nacl.sign.detached.verify(
+        isValid = nacl.sign.detached.verify(
           encodedClaim,
           Buffer.from(signature, 'hex'),
           Buffer.from(this._paychan.publicKey.substring(2), 'hex')
         )
       } catch (err) {
+        debug('signature verification error. err=', err)
+      }
+
+      if (!isValid) {
         debug('invalid claim signature for', dropAmount)
         throw new Error('Invalid claim signature for: ' + dropAmount)
       }
