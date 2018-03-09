@@ -24,7 +24,7 @@ class Plugin extends BtpPlugin {
     const server = parsedServer.href
 
     super(Object.assign({}, opts, { server }))
-    this._currencyScale = opts.currencyScale || 6
+    this._currencyScale = (typeof opts.currencyScale === 'number') ? opts.currencyScale : 6
 
     if (!opts.server || !opts.secret) {
       throw new Error('opts.server and opts.secret must be specified')
