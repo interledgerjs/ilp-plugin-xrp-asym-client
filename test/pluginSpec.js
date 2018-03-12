@@ -36,6 +36,12 @@ describe('pluginSpec', () => {
         this.opts.secret).toString('hex')
       assert.equal(p._server, makeBtpUrl(expectedPass))
     })
+
+    it('throws if currencyScale is neither defined nor a number', function () {
+      this.opts.currencyScale = 'awdiomawdiow'
+      assert.throws(() => new Plugin(this.opts),
+        /opts.currencyScale must be a number if specified/)
+    })
   })
 
   describe('_connect', () => {

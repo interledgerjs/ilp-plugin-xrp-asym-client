@@ -23,6 +23,12 @@ class Plugin extends BtpPlugin {
         opts.secret).toString('hex')
     const server = parsedServer.href
 
+    if (typeof opts.currencyScale !== 'number' && opts.currencyScale !== undefined) {
+      throw new Error('opts.currencyScale must be a number if specified.' +
+        ' type=' + (typeof opts.currencyScale) +
+        ' value=' + opts.currencyScale)
+    }
+
     super(Object.assign({}, opts, { server }))
     this._currencyScale = (typeof opts.currencyScale === 'number') ? opts.currencyScale : 6
 
