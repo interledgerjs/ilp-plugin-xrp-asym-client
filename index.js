@@ -368,12 +368,13 @@ class Plugin extends BtpPlugin {
     // but then the latency would effectively double.
 
     debug('given last claim of', this._lastClaim)
-    const dropAmount = util.xrpToDrops(this.baseToXrp(this._lastClaim.amount))
-    const encodedClaim = util.encodeClaim(dropAmount, this._channel)
 
     // If they say we haven't sent them anything yet, it doesn't matter
     // whether they possess a valid claim to say that.
-    if (this.baseToXrp(this._lastClaim.amount) !== this._channelDetails.balance) {
+    if (!new BigNumber(this.baseToXrp(this._lastClaim.amount)).isEqualTo(this._channelDetails.balance)) {
+      const dropAmount = util.xrpToDrops(this.baseToXrp(this._lastClaim.amount))
+      const encodedClaim = util.encodeClaim(dropAmount, this._channel)
+
       let isValid = false
       try {
         isValid = nacl.sign.detached.verify(
