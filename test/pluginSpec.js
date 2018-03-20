@@ -89,14 +89,24 @@ describe('pluginSpec', () => {
         }
       })
 
+      it('should not throw if last claim is zero', async function () {
+        const encodeSpy = this.sinon.spy(util, 'encodeClaim')
+        this.plugin._lastClaim.amount = '0'
+        this.plugin._channelDetails.balance = '0'
+        this.sinon.stub(this.plugin, '_call').resolves(null)
+
+        await this.plugin.sendMoney(100)
+
+        assert.deepEqual(encodeSpy.getCall(0).args, [ '1', 'abcdef' ])
+      })
+
       it('should round high-scale amount up to next drop', async function () {
         const encodeSpy = this.sinon.spy(util, 'encodeClaim')
         this.sinon.stub(this.plugin, '_call').resolves(null)
 
         await this.plugin.sendMoney(100)
 
-        assert.deepEqual(encodeSpy.getCall(0).args, [ '1', 'abcdef' ])
-        assert.deepEqual(encodeSpy.getCall(1).args, [ '2', 'abcdef' ])
+        assert.deepEqual(encodeSpy.getCall(0).args, [ '2', 'abcdef' ])
       })
 
       it('should keep error under a drop even on repeated roundings', async function () {
@@ -111,10 +121,8 @@ describe('pluginSpec', () => {
 
         await this.plugin.sendMoney(100)
 
-        assert.deepEqual(encodeSpy.getCall(0).args, [ '1', 'abcdef' ])
+        assert.deepEqual(encodeSpy.getCall(0).args, [ '2', 'abcdef' ])
         assert.deepEqual(encodeSpy.getCall(1).args, [ '2', 'abcdef' ])
-        assert.deepEqual(encodeSpy.getCall(2).args, [ '2', 'abcdef' ])
-        assert.deepEqual(encodeSpy.getCall(3).args, [ '2', 'abcdef' ])
       })
 
       it('should handle a claim', async function () {
