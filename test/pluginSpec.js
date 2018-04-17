@@ -40,7 +40,7 @@ describe('pluginSpec', () => {
     it('throws if currencyScale is neither defined nor a number', function () {
       this.opts.currencyScale = 'awdiomawdiow'
       assert.throws(() => new Plugin(this.opts),
-        /opts.currencyScale must be a number if specified/)
+        /currency scale must be a number if specified/)
     })
   })
 
