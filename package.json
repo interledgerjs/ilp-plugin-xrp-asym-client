@@ -18,7 +18,7 @@
     "ilp-plugin-btp": "^1.1.6",
     "ilp-plugin-xrp-paychan-shared": "^3.0.2",
     "ripple-keypairs": "^0.10.1",
-    "ripple-lib": "^0.20.0",
+    "ripple-lib": "^0.21.0",
     "tweetnacl": "^1.0.0",
     "ws": "^4.0.0"
   },
