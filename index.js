@@ -23,14 +23,21 @@ class Plugin extends BtpPlugin {
         opts.secret).toString('hex')
     const server = parsedServer.href
 
-    if (typeof opts.currencyScale !== 'number' && opts.currencyScale !== undefined) {
-      throw new Error('opts.currencyScale must be a number if specified.' +
-        ' type=' + (typeof opts.currencyScale) +
-        ' value=' + opts.currencyScale)
+    if (opts.assetScale && opts.currencyScale) {
+      throw new Error('opts.assetScale is an alias for opts.currencyScale;' +
+        'only one must be specified')
+    }
+
+    const currencyScale = opts.assetScale || opts.currencyScale
+
+    if (typeof currencyScale !== 'number' && currencyScale !== undefined) {
+      throw new Error('currency scale must be a number if specified.' +
+        ' type=' + (typeof currencyScale) +
+        ' value=' + currencyScale)
     }
 
     super(Object.assign({}, opts, { server }))
-    this._currencyScale = (typeof opts.currencyScale === 'number') ? opts.currencyScale : 6
+    this._currencyScale = (typeof currencyScale === 'number') ? currencyScale : 6
 
     if (!opts.server || !opts.secret) {
       throw new Error('opts.server and opts.secret must be specified')
