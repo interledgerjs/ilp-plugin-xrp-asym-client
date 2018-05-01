@@ -51,6 +51,7 @@ class Plugin extends BtpPlugin {
     // make sure two funds don't happen at once
     this._funding = false
     this._claimInterval = opts.claimInterval || util.DEFAULT_CLAIM_INTERVAL
+    this._maxFeePercent = opts.maxFeePercent || '0.01'
 
     // optional
     this._store = opts.store
@@ -272,7 +273,7 @@ class Plugin extends BtpPlugin {
       debug('setting claim interval on channel.')
       this._lastClaimedAmount = new BigNumber(this.xrpToBase(this._paychan.balance))
       this._claimIntervalId = setInterval(async () => {
-        await this._claimFunds()
+        await this._autoClaim()
       }, this._claimInterval)
 
       debug('loaded best claim of', this._bestClaim)
@@ -298,10 +299,30 @@ class Plugin extends BtpPlugin {
     debug('done')
   }
 
+  async _isClaimProfitable () {
+    const income = new BigNumber(this._bestClaim.amount).minus(this._lastClaimedAmount)
+    const fee = new BigNumber(this.xrpToBase(await this._api.getFee()))
+
+    debug('checking if claim is profitable. claim=' + this._bestClaim.amount +
+      ' lastClaimedAmount=' + this._lastClaimedAmount.toString() +
+      ' income=' + income.toString() +
+      ' fee=' + fee.toString() +
+      ' maxFeePercent=' + this._maxFeePercent)
+
+    return income.isGreaterThan(0) && fee.dividedBy(income).lte(this._maxFeePercent)
+  }
+
+  async _autoClaim () {
+    if (this._bestClaim.amount === '0') return
+    if (this._bestClaim.amount === this.xrpToBase(this._paychan.balance)) return
+    if (!(await this._isClaimProfitable())) return
+    return this._claimFunds()
+  }
+
   async _claimFunds () {
     if (this._bestClaim.amount === '0') return
-    if (this._bestClaim.amount === util.xrpToDrops(this._paychan.balance)) return
-    if (!this._lastClaimedAmount.lt(this._bestClaim.amount)) return
+    if (this._bestClaim.amount === this.xrpToBase(this._paychan.balance)) return
+    if (this._lastClaimedAmount.gte(this._bestClaim.amount)) return
 
     debug('starting claim. amount=' + this._bestClaim.amount)
     this._lastClaimedAmount = new BigNumber(this._bestClaim.amount)
