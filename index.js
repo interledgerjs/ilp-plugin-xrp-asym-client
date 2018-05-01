@@ -64,7 +64,7 @@ class Plugin extends BtpPlugin {
 
   xrpToBase (amount) {
     return new BigNumber(amount)
-      .mul(Math.pow(10, this._currencyScale))
+      .times(Math.pow(10, this._currencyScale))
       .toString()
   }
 
@@ -257,7 +257,7 @@ class Plugin extends BtpPlugin {
       }
 
       this._bestClaim = {
-        amount: util.xrpToDrops(this._paychan.balance)
+        amount: this.xrpToBase(this._paychan.balance)
       }
 
       // load the best claim from the crash cache
@@ -270,7 +270,7 @@ class Plugin extends BtpPlugin {
       }
 
       debug('setting claim interval on channel.')
-      this._lastClaimedAmount = new BigNumber(util.xrpToDrops(this._paychan.balance))
+      this._lastClaimedAmount = new BigNumber(this.xrpToBase(this._paychan.balance))
       this._claimIntervalId = setInterval(async () => {
         await this._claimFunds()
       }, this._claimInterval)
@@ -308,7 +308,7 @@ class Plugin extends BtpPlugin {
 
     debug('creating claim tx')
     const claimTx = await this._api.preparePaymentChannelClaim(this._address, {
-      balance: util.dropsToXrp(this._bestClaim.amount),
+      balance: this.baseToXrp(this._bestClaim.amount),
       channel: this._clientChannel,
       signature: this._bestClaim.signature.toUpperCase(),
       publicKey: this._paychan.publicKey
@@ -410,10 +410,10 @@ class Plugin extends BtpPlugin {
       .toString('hex')
       .toUpperCase()
 
-    const aboveThreshold = new BigNumber(util
-      .xrpToDrops(this._channelDetails.amount))
-      .minus(util.xrpToDrops(OUTGOING_CHANNEL_DEFAULT_AMOUNT_XRP / 2))
-      .lt(newDropAmount)
+    const aboveThreshold = new BigNumber(this
+      .xrpToBase(this._channelDetails.amount))
+      .minus(this.xrpToBase(OUTGOING_CHANNEL_DEFAULT_AMOUNT_XRP / 2))
+      .lt(amount)
 
     // if the claim we're signing is for more than half the channel's balance, add some funds
     // TODO: should there be a balance check to make sure we have enough to fund the channel?
