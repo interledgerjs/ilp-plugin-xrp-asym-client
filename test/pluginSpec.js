@@ -1,6 +1,7 @@
 'use strict' /* eslint-env mocha */
 
 const sinon = require('sinon')
+const BigNumber = require('bignumber.js')
 const Plugin = require('..')
 const BtpPacket = require('btp-packet')
 const chai = require('chai')
@@ -62,6 +63,63 @@ describe('pluginSpec', () => {
       await assert.isRejected(
         this.plugin._connect(),
         /Fatal! Currency scale mismatch/)
+    })
+  })
+
+  describe('autoClaim', () => {
+    beforeEach(function () {
+      this.plugin = new Plugin(this.opts)
+      this.plugin._api = { getFee: () => Promise.resolve('0.000010') }
+      this.claimStub = this.sinon.stub(this.plugin, '_claimFunds').resolves()
+      this.isClaimProfitableSpy = this.sinon.spy(this.plugin, '_isClaimProfitable')
+
+      this.plugin._lastClaimedAmount = new BigNumber('0')
+      this.plugin._paychan = this.plugin._channelDetails = {
+        amount: '10',
+        balance: '0.000000',
+        publicKey: 'edabcdef'
+      }
+      this.plugin._bestClaim = this.plugin._lastClaim = {
+        amount: '1',
+        signature: 'abcdef'
+      }
+    })
+
+    it('should not claim if the income is <100x fee', async function () {
+      await this.plugin._autoClaim()
+
+      assert.isFalse(this.claimStub.called, 'claim should not be called')
+      assert.isTrue(this.isClaimProfitableSpy.calledOnce, 'should check profitability')
+    })
+
+    it('should claim if the income is >100x fee', async function () {
+      this.plugin._bestClaim.amount = '1000'
+      await this.plugin._autoClaim()
+
+      assert.isTrue(this.claimStub.called, 'claim should be called')
+      assert.isTrue(this.isClaimProfitableSpy.calledOnce, 'should check profitability')
+    })
+
+    describe('with high scale', function () {
+      beforeEach(function () {
+        this.plugin._currencyScale = 9
+      })
+
+      it('should not claim if the income is <100x fee', async function () {
+        this.plugin._bestClaim.amount = '1000'
+        await this.plugin._autoClaim()
+
+        assert.isFalse(this.claimStub.called, 'claim should not be called')
+        assert.isTrue(this.isClaimProfitableSpy.calledOnce, 'should check profitability')
+      })
+
+      it('should claim if the income is >100x fee', async function () {
+        this.plugin._bestClaim.amount = '1000000'
+        await this.plugin._autoClaim()
+
+        assert.isTrue(this.claimStub.called, 'claim should not be called')
+        assert.isTrue(this.isClaimProfitableSpy.calledOnce, 'should check profitability')
+      })
     })
   })
 
