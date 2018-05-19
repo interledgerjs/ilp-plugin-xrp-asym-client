@@ -147,6 +147,12 @@ describe('pluginSpec', () => {
         }
       })
 
+      it('should not do anything if the amount is zero', async function () {
+        const encodeSpy = this.sinon.spy(util, 'encodeClaim')
+        await this.plugin.sendMoney(0)
+        assert.isFalse(encodeSpy.called)
+      })
+
       it('should not throw if last claim is zero', async function () {
         const encodeSpy = this.sinon.spy(util, 'encodeClaim')
         this.plugin._lastClaim.amount = '0'
@@ -217,6 +223,61 @@ describe('pluginSpec', () => {
           signature: 'AAAAAAA'}))
       }]})
       return assert.isRejected(p.sendMoney(1), 'Our last outgoing signature for 3 is invalid')
+    })
+  })
+
+  describe('_handleMoney', function () {
+    beforeEach(function () {
+      this.plugin = new Plugin(this.opts)
+
+      this.sinon.stub(nacl.sign, 'detached').returns('abcdef')
+
+      this.plugin._paychan = this.plugin._channelDetails = {
+        amount: '10',
+        balance: '0.000001',
+        publicKey: 'edabcdef'
+      }
+
+      this.plugin._keyPair = {}
+      this.plugin._funding = true
+      this.plugin._channel = 'abcdef'
+      this.plugin._clientChannel = 'abcdef'
+      this.plugin._bestClaim = this.plugin._lastClaim = {
+        amount: '990',
+        signature: 'abcdef'
+      }
+    })
+
+    it('should throw an error if the claim amount is less than before', async function () {
+      assert.isRejected(this.plugin._handleMoney('blah', {
+        requestId: 'requestId',
+        data: {
+          amount: '989',
+          protocolData: [{
+            protocolName: 'claim',
+            data: Buffer.from(JSON.stringify({
+              amount: '989',
+              signature: 'abcdef'
+            }), 'utf8')
+          }]
+        }
+      }), 'got claim that was lower than our last claim. lastAmount=990 amount=989')
+    })
+
+    it('should ignore claims for the same amount as the previous ones', async function () {
+      assert.isFulfilled(this.plugin._handleMoney('blah', {
+        requestId: 'requestId',
+        data: {
+          amount: '989',
+          protocolData: [{
+            protocolName: 'claim',
+            data: Buffer.from(JSON.stringify({
+              amount: '990',
+              signature: 'abcdef'
+            }), 'utf8')
+          }]
+        }
+      }))
     })
   })
 })
