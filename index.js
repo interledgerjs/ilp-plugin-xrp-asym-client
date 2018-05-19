@@ -375,6 +375,10 @@ class Plugin extends BtpPlugin {
   }
 
   async sendMoney (transferAmount) {
+    if (new BigNumber(transferAmount).isEqualTo(0)) {
+      return
+    }
+
     if (!this._lastClaim) {
       const response = await this._call(null, {
         type: BtpPacket.TYPE_MESSAGE,
@@ -510,10 +514,13 @@ class Plugin extends BtpPlugin {
           transferAmount + '; we got ' + addedMoney.toString())
       }
 
-      if (lastAmount.gte(amount)) {
+      if (lastAmount.gt(amount)) {
         throw new Error('got claim that was lower than our last claim.' +
           ' lastAmount=' + lastAmount.toString() +
           ' amount=' + amount)
+      } else if (lastAmount.eq(amount)) {
+        debug(`got claim for the same amount we had before. lastAmount=${lastAmount}, amount=${amount}`)
+        return []
       }
 
       const channelAmount = util.xrpToDrops(this._paychan.amount)
