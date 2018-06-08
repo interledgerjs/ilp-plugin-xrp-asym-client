@@ -566,4 +566,5 @@ class Plugin extends BtpPlugin {
 }
 
 Plugin.version = 2
+Plugin.OUTGOING_CHANNEL_DEFAULT_AMOUNT = OUTGOING_CHANNEL_DEFAULT_AMOUNT_XRP
 module.exports = Plugin
