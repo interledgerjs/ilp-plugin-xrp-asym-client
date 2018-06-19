@@ -5,7 +5,8 @@ const { deriveAddress, deriveKeypair } = require('ripple-keypairs')
 const { RippleAPI } = require('ripple-lib')
 const BtpPacket = require('btp-packet')
 const BigNumber = require('bignumber.js')
-const debug = require('debug')('ilp-plugin-xrp-asym-client')
+// const debug = require('debug')('ilp-plugin-xrp-asym-client')
+// const trace = require('debug')('ilp-plugin-xrp-asym-client:trace')
 const BtpPlugin = require('ilp-plugin-btp')
 const nacl = require('tweetnacl')
 const OUTGOING_CHANNEL_DEFAULT_AMOUNT_XRP = '10' // TODO: something lower?
@@ -13,6 +14,23 @@ const {
   util,
   ChannelWatcher
 } = require('ilp-plugin-xrp-paychan-shared')
+
+const createLogger = require('./src/util/logs')
+
+const DEBUG_NAMESPACE = 'ilp-plugin-xrp-asym-client'
+const TRACE_NAMESPACE = 'ilp-plugin-xrp-asym-client:trace'
+
+// const debugs = {
+//   info: function (msg) {
+//     debug('INFO: ' + msg)
+//   },
+//   warn: function (msg) {
+//     debug('WARN: ' + msg)
+//   },
+//   error: function (msg) {
+//     debug('ERROR: ' + msg)
+//   }
+// }
 
 class Plugin extends BtpPlugin {
   constructor (opts) {
@@ -57,7 +75,12 @@ class Plugin extends BtpPlugin {
     this._store = opts.store
     this._writeQueue = Promise.resolve()
 
-    this._log = opts._log || console
+    this._logger = opts.log || createLogger
+    this._log = this._logger(DEBUG_NAMESPACE)
+    this._tracer = this._logger(TRACE_NAMESPACE)
+    this._trace = function (msg) {
+      this._tracer.debug(msg)
+    }
     this._ws = null
 
     // this.on('incoming_reject', this._handleIncomingReject.bind(this))
@@ -78,7 +101,7 @@ class Plugin extends BtpPlugin {
   sendTransfer () {}
 
   async _createOutgoingChannel () {
-    debug('creating outgoing channel')
+    this._log.debug('creating outgoing channel')
     const txTag = util.randomTag()
     const tx = await this._api.preparePaymentChannelCreate(this._address, {
       amount: OUTGOING_CHANNEL_DEFAULT_AMOUNT_XRP,
@@ -88,25 +111,25 @@ class Plugin extends BtpPlugin {
       sourceTag: txTag
     })
 
-    debug('signing transaction')
+    this._trace('signing transaction')
     const signedTx = this._api.sign(tx.txJSON, this._secret)
     const result = await this._api.submit(signedTx.signedTransaction)
 
-    debug('submitted outgoing channel tx to validator')
+    this._trace('submitted outgoing channel tx to validator')
     if (result.resultCode !== 'tesSUCCESS') {
       const message = 'Error creating the payment channel: ' + result.resultCode + ' ' + result.resultMessage
-      debug(message)
+      this._log.error(message)
       return
     }
 
     // TODO: make a generic version of the code that submits these things
-    debug('waiting for transaction to be added to the ledger')
+    this._log.debug('waiting for transaction to be added to the ledger')
     return new Promise((resolve) => {
       const handleTransaction = (ev) => {
         if (ev.transaction.SourceTag !== txTag) return
         if (ev.transaction.Account !== this._address) return
 
-        debug('transaction complete')
+        this._log.debug('transaction complete')
         const channel = util.computeChannelId(
           ev.transaction.Account,
           ev.transaction.Destination,
@@ -137,7 +160,7 @@ class Plugin extends BtpPlugin {
     // exists) or do they happen in a separate script?
 
     const info = JSON.parse(infoResponse.protocolData[0].data.toString())
-    debug('got info:', info)
+    this._log.debug('got info:', info)
 
     // if the info is from an old version and we use a non-default scale, or the versions match and our scales don't match
     if ((info.currencyScale || 6) !== this._currencyScale) {
@@ -171,7 +194,7 @@ class Plugin extends BtpPlugin {
 
     this._watcher = new ChannelWatcher(60 * 1000, this._api)
     this._watcher.on('channelClose', () => {
-      debug('channel closing; triggering auto-disconnect')
+      this._log.info('channel closing; triggering auto-disconnect')
       // TODO: should we also close our own channel?
       this._disconnect()
     })
@@ -202,7 +225,7 @@ class Plugin extends BtpPlugin {
     this._channelDetails = await this._api.getPaymentChannel(this._channel)
 
     if (!this._clientChannel) {
-      debug('no client channel has been established; requesting')
+      this._trace('no client channel has been established; requesting')
       channelProtocolData.push({
         protocolName: 'fund_channel',
         contentType: BtpPacket.MIME_TEXT_PLAIN_UTF8,
@@ -270,18 +293,18 @@ class Plugin extends BtpPlugin {
         }
       }
 
-      debug('setting claim interval on channel.')
+      this._trace('setting claim interval on channel.')
       this._lastClaimedAmount = new BigNumber(this.xrpToBase(this._paychan.balance))
       this._claimIntervalId = setInterval(async () => {
         await this._autoClaim()
       }, this._claimInterval)
 
-      debug('loaded best claim of', this._bestClaim)
+      this._trace('loaded best claim of', this._bestClaim)
       this._watcher.watch(this._clientChannel)
     }
 
     // finished the connect process
-    debug('connected asym client plugin')
+    this._log.info('connected asym client plugin')
   }
 
   async _disconnect () {
@@ -297,7 +320,7 @@ class Plugin extends BtpPlugin {
     await this._autoClaim()
 
     clearInterval(this._claimIntervalId)
-    debug('done')
+    this._log.info('done')
   }
 
   async _getClaimFeeInfo () {
@@ -305,7 +328,7 @@ class Plugin extends BtpPlugin {
     const maxFee = await this._api.getFee()
     const fee = new BigNumber(this.xrpToBase(maxFee))
 
-    debug('checking if claim is profitable. claim=' + this._bestClaim.amount +
+    this._log.debug('checking if claim is profitable. claim=' + this._bestClaim.amount +
       ' lastClaimedAmount=' + this._lastClaimedAmount.toString() +
       ' income=' + income.toString() +
       ' fee=' + fee.toString() +
@@ -336,10 +359,10 @@ class Plugin extends BtpPlugin {
     if (this._bestClaim.amount === this.xrpToBase(this._paychan.balance)) return
     if (this._lastClaimedAmount.gte(this._bestClaim.amount)) return
 
-    debug('starting claim. amount=' + this._bestClaim.amount)
+    this._log.info('starting claim. amount=' + this._bestClaim.amount)
     this._lastClaimedAmount = new BigNumber(this._bestClaim.amount)
 
-    debug('creating claim tx')
+    this._trace('creating claim tx')
     const claimTx = await this._api.preparePaymentChannelClaim(this._address, {
       balance: this.baseToXrp(this._bestClaim.amount),
       channel: this._clientChannel,
@@ -349,17 +372,17 @@ class Plugin extends BtpPlugin {
       maxFee
     })
 
-    debug('signing claim transaction')
+    this._trace('signing claim transaction')
     const signedTx = this._api.sign(claimTx.txJSON, this._secret)
 
-    debug('submitting claim transaction ', claimTx)
+    this._trace('submitting claim transaction ', claimTx)
     const {resultCode, resultMessage} = await this._api.submit(signedTx.signedTransaction)
     if (resultCode !== 'tesSUCCESS') {
       console.error('WARNING: Error submitting claim: ', resultMessage)
       throw new Error('Could not claim funds: ', resultMessage)
     }
 
-    debug('claimed funds.')
+    this._log.info('claimed funds.')
   }
 
   async _handleData (from, message) {
@@ -367,7 +390,7 @@ class Plugin extends BtpPlugin {
     const channelProtocol = protocolMap.channel
 
     if (channelProtocol) {
-      debug('got notification of changing channel details')
+      this._log.info('got notification of changing channel details')
       const channel = channelProtocol
         .toString('hex')
         .toUpperCase()
@@ -413,7 +436,7 @@ class Plugin extends BtpPlugin {
     // connected to one server. It could be switched to fetch the last claim every time,
     // but then the latency would effectively double.
 
-    debug('given last claim of', this._lastClaim)
+    this._log.debug('given last claim of', this._lastClaim)
 
     // If they say we haven't sent them anything yet, it doesn't matter
     // whether they possess a valid claim to say that.
@@ -429,16 +452,16 @@ class Plugin extends BtpPlugin {
           this._keyPair.publicKey
         )
       } catch (err) {
-        debug('verifying signature failed:', err.message)
+        this._log.error('verifying signature failed:', err.message)
       }
 
       if (!isValid) {
         // TODO: if these get out of sync, all subsequent transfers of money will fail
-        debug('invalid claim signature for', dropAmount)
+        this._log.error('invalid claim signature for', dropAmount)
         throw new Error('Our last outgoing signature for ' + dropAmount + ' is invalid')
       }
     } else {
-      debug('signing claim based on channel balance.')
+      this._log.debug('signing claim based on channel balance.')
     }
 
     const amount = new BigNumber(this._lastClaim.amount).plus(transferAmount).toString()
@@ -458,7 +481,7 @@ class Plugin extends BtpPlugin {
     // TODO: should there be a balance check to make sure we have enough to fund the channel?
     // TODO: should this functionality be enabled by default?
     if (!this._funding && aboveThreshold) {
-      debug('adding funds to channel')
+      this._log.info('adding funds to channel')
       this._funding = util.fundChannel({
         api: this._api,
         channel: this._channel,
@@ -504,12 +527,12 @@ class Plugin extends BtpPlugin {
           })
         })
         .catch((e) => {
-          debug('fund tx/notify failed:', e)
+          this._log.error('fund tx/notify failed:', e)
           this._funding = false
         })
     }
 
-    debug('setting new claim. amount=' + amount)
+    this._log.info('setting new claim. amount=' + amount)
     this._lastClaim = { amount, signature }
 
     return this._call(null, {
@@ -538,7 +561,7 @@ class Plugin extends BtpPlugin {
       const addedMoney = new BigNumber(amount).minus(lastAmount)
 
       if (!addedMoney.isEqualTo(transferAmount)) {
-        debug('warning: peer balance is out of sync with ours. peer thinks they sent ' +
+        this._log.warn('warning: peer balance is out of sync with ours. peer thinks they sent ' +
           transferAmount + '; we got ' + addedMoney.toString())
       }
 
@@ -547,13 +570,13 @@ class Plugin extends BtpPlugin {
           ' lastAmount=' + lastAmount.toString() +
           ' amount=' + amount)
       } else if (lastAmount.eq(amount)) {
-        debug(`got claim for the same amount we had before. lastAmount=${lastAmount}, amount=${amount}`)
+        this._log.debug(`got claim for the same amount we had before. lastAmount=${lastAmount}, amount=${amount}`)
         return []
       }
 
       const channelAmount = util.xrpToDrops(this._paychan.amount)
       if (new BigNumber(dropAmount).gt(channelAmount)) {
-        debug('got claim for amount larger than max. amount=' + dropAmount,
+        this._log.error('got claim for amount larger than max. amount=' + dropAmount,
           'max=' + channelAmount)
         throw new Error('got claim for amount larger than max. amount=' + dropAmount +
           ' max=' + channelAmount)
@@ -567,15 +590,15 @@ class Plugin extends BtpPlugin {
           Buffer.from(this._paychan.publicKey.substring(2), 'hex')
         )
       } catch (err) {
-        debug('signature verification error. err=', err)
+        this._log.error('signature verification error. err=', err)
       }
 
       if (!isValid) {
-        debug('invalid claim signature for', dropAmount)
+        this._log.error('invalid claim signature for', dropAmount)
         throw new Error('Invalid claim signature for: ' + dropAmount)
       }
 
-      debug('got new best claim for', amount)
+      this._log.debug('got new best claim for', amount)
       this._bestClaim = { amount, signature }
 
       if (this._store) {
