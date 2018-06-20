@@ -3,23 +3,31 @@ const debug = require('debug')
 
 class Logger {
   constructor (namespace) {
-    this.debug = debug(namespace)
+    this.debugInfo = debug(namespace + ':info')
+    this.debugWarn = debug(namespace + ':warn')
+    this.debugError = debug(namespace + ':error')
+    this.debugger = debug(namespace + ':debug')
+    this.tracer = debug(namespace + ':trace')
   }
 
   info (msg) {
-    this.debug('INFO: ' + msg)
+    this.debugInfo(msg)
   }
 
   warn (msg) {
-    this.debug('WARN: ' + msg)
+    this.debugWarn(msg)
   }
 
   error (msg) {
-    this.debug('ERROR: ' + msg)
+    this.debugError(msg)
   }
 
   debug (msg) {
-    this.debug('DEBUG: ' + msg)
+    this.debugger(msg)
+  }
+
+  trace(msg) {
+    this.trace(msg)
   }
 }
 
