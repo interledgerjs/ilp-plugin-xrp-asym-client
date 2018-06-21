@@ -14,7 +14,7 @@ const {
   ChannelWatcher
 } = require('ilp-plugin-xrp-paychan-shared')
 
-const createLogger = require('./src/util/logs')
+const createLogger = require('ilp-logger')
 
 const DEBUG_NAMESPACE = 'ilp-plugin-xrp-asym-client'
 
@@ -83,7 +83,7 @@ class Plugin extends BtpPlugin {
   sendTransfer () {}
 
   async _createOutgoingChannel () {
-    this._log.trace('creating outgoing channel')
+    this._log.info('creating outgoing channel')
     const txTag = util.randomTag()
     const tx = await this._api.preparePaymentChannelCreate(this._address, {
       amount: OUTGOING_CHANNEL_DEFAULT_AMOUNT_XRP,
@@ -100,7 +100,7 @@ class Plugin extends BtpPlugin {
     this._log.trace('submitted outgoing channel tx to validator')
     if (result.resultCode !== 'tesSUCCESS') {
       const message = 'Error creating the payment channel: ' + result.resultCode + ' ' + result.resultMessage
-      this._log.debug(message)
+      this._log.error(message)
       return
     }
 
@@ -111,7 +111,7 @@ class Plugin extends BtpPlugin {
         if (ev.transaction.SourceTag !== txTag) return
         if (ev.transaction.Account !== this._address) return
 
-        this._log.trace('transaction complete')
+        this._log.info('transaction complete')
         const channel = util.computeChannelId(
           ev.transaction.Account,
           ev.transaction.Destination,
@@ -514,7 +514,7 @@ class Plugin extends BtpPlugin {
         })
     }
 
-    this._log.info('setting new claim. amount=' + amount)
+    this._log.trace('setting new claim. amount=' + amount)
     this._lastClaim = { amount, signature }
 
     return this._call(null, {
