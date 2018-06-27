@@ -98,6 +98,10 @@ describe('pluginSpec', () => {
 
       assert.isTrue(this.claimStub.called, 'claim should be called')
       assert.isTrue(this.isClaimProfitableSpy.calledOnce, 'should check profitability')
+      assert.deepEqual(this.claimStub.firstCall.args[0], {
+        profitable: true,
+        maxFeeXrp: '0.000010'
+      }, 'should have called claim with maxFeeXrp')
     })
 
     describe('with high scale', function () {
@@ -119,6 +123,10 @@ describe('pluginSpec', () => {
 
         assert.isTrue(this.claimStub.called, 'claim should not be called')
         assert.isTrue(this.isClaimProfitableSpy.calledOnce, 'should check profitability')
+        assert.deepEqual(this.claimStub.firstCall.args[0], {
+          profitable: true,
+          maxFeeXrp: '0.000010'
+        }, 'should have called claim with maxFeeXrp')
       })
     })
   })
