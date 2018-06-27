@@ -293,7 +293,8 @@ class Plugin extends BtpPlugin {
       await this._writeQueue
     }
 
-    await this._claimFunds()
+    // runs autoclaim in order to ensure that this claim is profitable
+    await this._autoClaim()
 
     clearInterval(this._claimIntervalId)
     debug('done')
@@ -301,7 +302,8 @@ class Plugin extends BtpPlugin {
 
   async _isClaimProfitable () {
     const income = new BigNumber(this._bestClaim.amount).minus(this._lastClaimedAmount)
-    const fee = new BigNumber(this.xrpToBase(await this._api.getFee()))
+    const maxFeeXrp = await this._api.getFee()
+    const fee = new BigNumber(this.xrpToBase(maxFeeXrp))
 
     debug('checking if claim is profitable. claim=' + this._bestClaim.amount +
       ' lastClaimedAmount=' + this._lastClaimedAmount.toString() +
@@ -309,17 +311,27 @@ class Plugin extends BtpPlugin {
       ' fee=' + fee.toString() +
       ' maxFeePercent=' + this._maxFeePercent)
 
-    return income.isGreaterThan(0) && fee.dividedBy(income).lte(this._maxFeePercent)
+    const profitable = income.isGreaterThan(0) && fee.dividedBy(income).lte(this._maxFeePercent)
+
+    return {
+      profitable,
+      maxFeeXrp
+    }
   }
 
   async _autoClaim () {
     if (this._bestClaim.amount === '0') return
     if (this._bestClaim.amount === this.xrpToBase(this._paychan.balance)) return
-    if (!(await this._isClaimProfitable())) return
-    return this._claimFunds()
+
+    const feeResult = await this._isClaimProfitable()
+    if (!feeResult.profitable) {
+      return
+    }
+
+    return this._claimFunds(feeResult)
   }
 
-  async _claimFunds () {
+  async _claimFunds ({ maxFeeXrp }) {
     if (this._bestClaim.amount === '0') return
     if (this._bestClaim.amount === this.xrpToBase(this._paychan.balance)) return
     if (this._lastClaimedAmount.gte(this._bestClaim.amount)) return
@@ -332,7 +344,9 @@ class Plugin extends BtpPlugin {
       balance: this.baseToXrp(this._bestClaim.amount),
       channel: this._clientChannel,
       signature: this._bestClaim.signature.toUpperCase(),
-      publicKey: this._paychan.publicKey
+      publicKey: this._paychan.publicKey,
+    }, {
+      maxFeeXrp
     })
 
     debug('signing claim transaction')
