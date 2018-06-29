@@ -344,7 +344,7 @@ class Plugin extends BtpPlugin {
       balance: this.baseToXrp(this._bestClaim.amount),
       channel: this._clientChannel,
       signature: this._bestClaim.signature.toUpperCase(),
-      publicKey: this._paychan.publicKey,
+      publicKey: this._paychan.publicKey
     }, {
       maxFee
     })
