@@ -302,8 +302,8 @@ class Plugin extends BtpPlugin {
 
   async _isClaimProfitable () {
     const income = new BigNumber(this._bestClaim.amount).minus(this._lastClaimedAmount)
-    const maxFeeXrp = await this._api.getFee()
-    const fee = new BigNumber(this.xrpToBase(maxFeeXrp))
+    const maxFee = await this._api.getFee()
+    const fee = new BigNumber(this.xrpToBase(maxFee))
 
     debug('checking if claim is profitable. claim=' + this._bestClaim.amount +
       ' lastClaimedAmount=' + this._lastClaimedAmount.toString() +
@@ -315,7 +315,7 @@ class Plugin extends BtpPlugin {
 
     return {
       profitable,
-      maxFeeXrp
+      maxFee
     }
   }
 
@@ -331,7 +331,7 @@ class Plugin extends BtpPlugin {
     return this._claimFunds(feeResult)
   }
 
-  async _claimFunds ({ maxFeeXrp }) {
+  async _claimFunds ({ maxFee }) {
     if (this._bestClaim.amount === '0') return
     if (this._bestClaim.amount === this.xrpToBase(this._paychan.balance)) return
     if (this._lastClaimedAmount.gte(this._bestClaim.amount)) return
@@ -346,7 +346,7 @@ class Plugin extends BtpPlugin {
       signature: this._bestClaim.signature.toUpperCase(),
       publicKey: this._paychan.publicKey,
     }, {
-      maxFeeXrp
+      maxFee
     })
 
     debug('signing claim transaction')
