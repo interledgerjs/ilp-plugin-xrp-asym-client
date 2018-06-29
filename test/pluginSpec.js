@@ -197,6 +197,33 @@ describe('pluginSpec', () => {
         assert.deepEqual(encodeSpy.getCall(1).args, [ '2', 'abcdef' ])
       })
 
+      it('should submit a fund transaction if above threshold', async function () {
+        const clock = sinon.useFakeTimers()
+        this.sinon.spy(util, 'encodeClaim')
+        this.sinon.stub(this.plugin, '_call').resolves(null)
+        const fundStub = this.sinon.stub(util, 'fundChannel').resolves(null)
+        const encodeProofStub = this.sinon.stub(util, 'encodeChannelProof').returns(Buffer.from('abc'))
+
+        // ensures that the retry logic for reloading the channel works
+        const getPaymentChannelStub = this.sinon.stub()
+          .onFirstCall().rejects(new Error('no'))
+          .onSecondCall().resolves(null)
+
+        // the contents of the payment channel aren't relevant for this test, it's only
+        // important that they can be accessed
+        this.plugin._api = { getPaymentChannel: getPaymentChannelStub }
+
+        this.plugin._funding = false
+        await this.plugin.sendMoney(6e9)
+        clock.tick(2000)
+        await this.plugin._funding
+        clock.restore()
+
+        assert.isTrue(fundStub.calledOnce)
+        assert.isTrue(getPaymentChannelStub.calledTwice)
+        assert.isTrue(encodeProofStub.calledOnce)
+      })
+
       it('should handle a claim', async function () {
         this.sinon.stub(nacl.sign.detached, 'verify').returns(true)
         const encodeSpy = this.sinon.spy(util, 'encodeClaim')
