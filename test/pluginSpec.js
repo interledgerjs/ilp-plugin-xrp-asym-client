@@ -71,7 +71,7 @@ describe('pluginSpec', () => {
       this.plugin = new Plugin(this.opts)
       this.plugin._api = { getFee: () => Promise.resolve('0.000010') }
       this.claimStub = this.sinon.stub(this.plugin, '_claimFunds').resolves()
-      this.isClaimProfitableSpy = this.sinon.spy(this.plugin, '_isClaimProfitable')
+      this.getClaimFeeInfoSpy = this.sinon.spy(this.plugin, '_getClaimFeeInfo')
 
       this.plugin._lastClaimedAmount = new BigNumber('0')
       this.plugin._paychan = this.plugin._channelDetails = {
@@ -89,7 +89,7 @@ describe('pluginSpec', () => {
       await this.plugin._autoClaim()
 
       assert.isFalse(this.claimStub.called, 'claim should not be called')
-      assert.isTrue(this.isClaimProfitableSpy.calledOnce, 'should check profitability')
+      assert.isTrue(this.getClaimFeeInfoSpy.calledOnce, 'should check profitability')
     })
 
     it('should claim if the income is >100x fee', async function () {
@@ -97,7 +97,7 @@ describe('pluginSpec', () => {
       await this.plugin._autoClaim()
 
       assert.isTrue(this.claimStub.called, 'claim should be called')
-      assert.isTrue(this.isClaimProfitableSpy.calledOnce, 'should check profitability')
+      assert.isTrue(this.getClaimFeeInfoSpy.calledOnce, 'should check profitability')
       assert.deepEqual(this.claimStub.firstCall.args[0], {
         profitable: true,
         maxFee: '0.000010'
@@ -114,7 +114,7 @@ describe('pluginSpec', () => {
         await this.plugin._autoClaim()
 
         assert.isFalse(this.claimStub.called, 'claim should not be called')
-        assert.isTrue(this.isClaimProfitableSpy.calledOnce, 'should check profitability')
+        assert.isTrue(this.getClaimFeeInfoSpy.calledOnce, 'should check profitability')
       })
 
       it('should claim if the income is >100x fee', async function () {
@@ -122,7 +122,7 @@ describe('pluginSpec', () => {
         await this.plugin._autoClaim()
 
         assert.isTrue(this.claimStub.called, 'claim should not be called')
-        assert.isTrue(this.isClaimProfitableSpy.calledOnce, 'should check profitability')
+        assert.isTrue(this.getClaimFeeInfoSpy.calledOnce, 'should check profitability')
         assert.deepEqual(this.claimStub.firstCall.args[0], {
           profitable: true,
           maxFee: '0.000010'
