@@ -300,7 +300,7 @@ class Plugin extends BtpPlugin {
     debug('done')
   }
 
-  async _isClaimProfitable () {
+  async _getClaimFeeInfo () {
     const income = new BigNumber(this._bestClaim.amount).minus(this._lastClaimedAmount)
     const maxFee = await this._api.getFee()
     const fee = new BigNumber(this.xrpToBase(maxFee))
@@ -323,7 +323,7 @@ class Plugin extends BtpPlugin {
     if (this._bestClaim.amount === '0') return
     if (this._bestClaim.amount === this.xrpToBase(this._paychan.balance)) return
 
-    const feeResult = await this._isClaimProfitable()
+    const feeResult = await this._getClaimFeeInfo()
     if (!feeResult.profitable) {
       return
     }
