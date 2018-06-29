@@ -468,6 +468,20 @@ class Plugin extends BtpPlugin {
         amount: util.xrpToDrops(OUTGOING_CHANNEL_DEFAULT_AMOUNT_XRP)
       })
         .then(async () => {
+          // Ensures that a new funding transaction won't be submitted until we
+          // update our channel details. Otherwise, many funding transactions
+          // could be triggered in quick succession, which is dangerous.
+          while (true) {
+            try {
+              this._channelDetails = await this._api.getPaymentChannel(this._channel)
+              debug('reloading channel details after fund. channel=' + this._channel)
+              break
+            } catch (e) {
+              debug('could not reload our channel details. further funding transactions are disabled until this reload is complete to prevent loss of funds. error=', e)
+              await new Promise(resolve => setTimeout(resolve, 2000))
+            }
+          }
+
           this._funding = false
 
           const encodedChannel = util.encodeChannelProof(this._channel, this._account)
