@@ -18,7 +18,7 @@ deployment:
     commands:
       # Push NPM package if not yet published
       - mv npmrc-env .npmrc
-      - if [ "$(npm show ilp-plugin-xrp-asym-server version)" != "$(npm ls --depth=-1 2>/dev/null | head -1 | cut -f 1 -d " " | cut -f 2 -d @)" ] ; then npm publish ; fi
+      - if [ "$(npm show ilp-plugin-xrp-asym-client version)" != "$(npm ls --depth=-1 2>/dev/null | head -1 | cut -f 1 -d " " | cut -f 2 -d @)" ] ; then npm publish ; fi
 
 general:
   artifacts:
