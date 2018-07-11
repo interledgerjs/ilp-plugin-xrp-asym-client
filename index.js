@@ -19,7 +19,7 @@ const createLogger = require('ilp-logger')
 const DEBUG_NAMESPACE = 'ilp-plugin-xrp-asym-client'
 
 class Plugin extends BtpPlugin {
-  constructor (opts, { log } = {}) {
+  constructor (opts, { log, store } = {}) {
     // derive secret from HMAC of host and ripple secret, unless specified already
     const parsedServer = new URL(opts.server)
     parsedServer.password = parsedServer.password ||
@@ -58,7 +58,7 @@ class Plugin extends BtpPlugin {
     this._maxFeePercent = opts.maxFeePercent || '0.01'
 
     // optional
-    this._store = opts.store
+    this._store = store || opts.store
     this._writeQueue = Promise.resolve()
 
     this._log = log || createLogger(DEBUG_NAMESPACE)
@@ -83,10 +83,11 @@ class Plugin extends BtpPlugin {
   sendTransfer () {}
 
   async _createOutgoingChannel () {
-    this._log.info('creating outgoing channel')
+    const amount = OUTGOING_CHANNEL_DEFAULT_AMOUNT_XRP
+    this._log.info('creating outgoing channel. from=%s to=%s amount=%s', this._address, this._peerAddress, amount)
     const txTag = util.randomTag()
     const tx = await this._api.preparePaymentChannelCreate(this._address, {
-      amount: OUTGOING_CHANNEL_DEFAULT_AMOUNT_XRP,
+      amount,
       destination: this._peerAddress,
       settleDelay: util.MIN_SETTLE_DELAY,
       publicKey: 'ED' + Buffer.from(this._keyPair.publicKey).toString('hex').toUpperCase(),
@@ -99,7 +100,7 @@ class Plugin extends BtpPlugin {
 
     this._log.trace('submitted outgoing channel tx to validator')
     if (result.resultCode !== 'tesSUCCESS') {
-      const message = 'Error creating the payment channel: ' + result.resultCode + ' ' + result.resultMessage
+      const message = 'failed to create the payment channel from ' + this._address + ' to ' + this._peerAddress + ' with ' + OUTGOING_CHANNEL_DEFAULT_AMOUNT_XRP + ' XRP: ' + result.resultCode + ' ' + result.resultMessage
       this._log.error(message)
       return
     }
@@ -268,10 +269,14 @@ class Plugin extends BtpPlugin {
 
       // load the best claim from the crash cache
       if (this._store) {
-        const bestClaim = JSON.parse(await this._store.get(this._clientChannel))
-        if (bestClaim.amount > this._bestClaim) {
-          this._bestClaim = bestClaim
-          // TODO: should it submit the recovered claim right away or wait?
+        const bestClaimJson = await this._store.get(this._clientChannel)
+
+        if (bestClaimJson) {
+          const bestClaim = JSON.parse(bestClaimJson)
+          if (bestClaim.amount > this._bestClaim) {
+            this._bestClaim = bestClaim
+            // TODO: should it submit the recovered claim right away or wait?
+          }
         }
       }
 
@@ -360,8 +365,8 @@ class Plugin extends BtpPlugin {
     this._log.trace('submitting claim transaction ', claimTx)
     const {resultCode, resultMessage} = await this._api.submit(signedTx.signedTransaction)
     if (resultCode !== 'tesSUCCESS') {
-      this._log.warn('WARNING: Error submitting claim: ', resultMessage)
-      throw new Error('Could not claim funds: ', resultMessage)
+      this._log.error('error submitting claim:', resultMessage)
+      throw new Error('Could not claim funds: ' + resultMessage)
     }
 
     this._log.trace('claimed funds.')
@@ -434,12 +439,12 @@ class Plugin extends BtpPlugin {
           this._keyPair.publicKey
         )
       } catch (err) {
-        this._log.debug('verifying signature failed:', err.message)
+        this._log.warn('verifying signature failed:', err.message)
       }
 
       if (!isValid) {
         // TODO: if these get out of sync, all subsequent transfers of money will fail
-        this._log.debug('invalid claim signature for', dropAmount)
+        this._log.warn('invalid claim signature for', dropAmount)
         throw new Error('Our last outgoing signature for ' + dropAmount + ' is invalid')
       }
     } else {
