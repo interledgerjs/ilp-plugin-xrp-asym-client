@@ -286,7 +286,7 @@ class Plugin extends BtpPlugin {
         await this._autoClaim()
       }, this._claimInterval)
 
-      this._log.trace('loaded best claim of', this._bestClaim)
+      this._log.trace('loaded best claim (on clientChannel) of', this._bestClaim)
       this._watcher.watch(this._clientChannel)
     }
 
@@ -423,7 +423,7 @@ class Plugin extends BtpPlugin {
     // connected to one server. It could be switched to fetch the last claim every time,
     // but then the latency would effectively double.
 
-    this._log.trace('given last claim of', this._lastClaim)
+    this._log.trace('given last claim (on channel to connector) of', this._lastClaim)
 
     // If they say we haven't sent them anything yet, it doesn't matter
     // whether they possess a valid claim to say that.
