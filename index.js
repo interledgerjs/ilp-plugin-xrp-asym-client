@@ -283,7 +283,11 @@ class Plugin extends BtpPlugin {
       this._log.trace('setting claim interval on channel.')
       this._lastClaimedAmount = new BigNumber(this.xrpToBase(this._paychan.balance))
       this._claimIntervalId = setInterval(async () => {
-        await this._autoClaim()
+        try {
+          await this._autoClaim()
+        } catch (e) {
+          this._log.error('error during auto-claim. error=' + e.stack)
+        }
       }, this._claimInterval)
 
       this._log.trace('loaded best claim (on clientChannel) of', this._bestClaim)
