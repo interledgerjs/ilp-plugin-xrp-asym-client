@@ -1,5 +1,7 @@
 # ILP Plugin XRP Asym Client
 
+[![Greenkeeper badge](https://badges.greenkeeper.io/interledgerjs/ilp-plugin-xrp-asym-client.svg)](https://greenkeeper.io/)
+
 This plugin allows a user to create a payment channel to a connector without
 the connector having to add an entry to their list of peers. It is therefore
 very useful for creating your own sub-connector. The client plugin first opens
