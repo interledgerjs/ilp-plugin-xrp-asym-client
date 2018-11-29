@@ -55,6 +55,7 @@ class Plugin extends BtpPlugin {
     // make sure two funds don't happen at once
     this._funding = false
     this._claimInterval = opts.claimInterval || util.DEFAULT_CLAIM_INTERVAL
+    this._outgoingChannelAmount = opts.outgoingChannelAmount || OUTGOING_CHANNEL_DEFAULT_AMOUNT_XRP
     this._maxFeePercent = opts.maxFeePercent || '0.01'
 
     // optional
@@ -83,7 +84,7 @@ class Plugin extends BtpPlugin {
   sendTransfer () {}
 
   async _createOutgoingChannel () {
-    const amount = OUTGOING_CHANNEL_DEFAULT_AMOUNT_XRP
+    const amount = this._outgoingChannelAmount
     this._log.info('creating outgoing channel. from=%s to=%s amount=%s', this._address, this._peerAddress, amount)
     const txTag = util.randomTag()
     const tx = await this._api.preparePaymentChannelCreate(this._address, {
@@ -100,7 +101,7 @@ class Plugin extends BtpPlugin {
 
     this._log.trace('submitted outgoing channel tx to validator')
     if (result.resultCode !== 'tesSUCCESS') {
-      const message = 'failed to create the payment channel from ' + this._address + ' to ' + this._peerAddress + ' with ' + OUTGOING_CHANNEL_DEFAULT_AMOUNT_XRP + ' XRP: ' + result.resultCode + ' ' + result.resultMessage
+      const message = 'failed to create the payment channel from ' + this._address + ' to ' + this._peerAddress + ' with ' + this._outgoingChannelAmount + ' XRP: ' + result.resultCode + ' ' + result.resultMessage
       this._log.error(message)
       return
     }
@@ -465,7 +466,7 @@ class Plugin extends BtpPlugin {
 
     const aboveThreshold = new BigNumber(this
       .xrpToBase(this._channelDetails.amount))
-      .minus(this.xrpToBase(OUTGOING_CHANNEL_DEFAULT_AMOUNT_XRP / 2))
+      .minus(this.xrpToBase(this._outgoingChannelAmount / 2))
       .lt(amount)
 
     // if the claim we're signing is for more than half the channel's balance, add some funds
@@ -479,7 +480,7 @@ class Plugin extends BtpPlugin {
         address: this._address,
         secret: this._secret,
         // TODO: configurable fund amount?
-        amount: util.xrpToDrops(OUTGOING_CHANNEL_DEFAULT_AMOUNT_XRP)
+        amount: util.xrpToDrops(this._outgoingChannelAmount)
       })
         .then(async () => {
           // Ensures that a new funding transaction won't be submitted until we
