@@ -479,7 +479,6 @@ class Plugin extends BtpPlugin {
         channel: this._channel,
         address: this._address,
         secret: this._secret,
-        // TODO: configurable fund amount?
         amount: util.xrpToDrops(this._outgoingChannelAmount)
       })
         .then(async () => {
