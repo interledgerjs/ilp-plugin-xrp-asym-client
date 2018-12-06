@@ -20,6 +20,7 @@
     "ilp-plugin-xrp-paychan-shared": "^4.1.1",
     "ripple-keypairs": "^0.10.1",
     "ripple-lib": "^0.21.0",
+    "sodium": "^3.0.2",
     "tweetnacl": "^1.0.0",
     "ws": "^4.0.0"
   },
