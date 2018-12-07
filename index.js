@@ -7,7 +7,7 @@ const BtpPacket = require('btp-packet')
 const BigNumber = require('bignumber.js')
 const debug = require('debug')
 const BtpPlugin = require('ilp-plugin-btp')
-const sodium = require('sodium')
+const sodium = require('sodium-universal')
 const OUTGOING_CHANNEL_DEFAULT_AMOUNT_XRP = '10' // TODO: something lower?
 const {
   util,
@@ -91,7 +91,7 @@ class Plugin extends BtpPlugin {
       amount,
       destination: this._peerAddress,
       settleDelay: util.MIN_SETTLE_DELAY,
-      publicKey: 'ED' + this._keyPair.publicKey.baseBuffer.toString('hex').toUpperCase(),
+      publicKey: 'ED' + this._keyPair.publicKey.toString('hex').toUpperCase(),
       sourceTag: txTag
     })
 
@@ -157,11 +157,19 @@ class Plugin extends BtpPlugin {
     this._channel = info.channel
     this._clientChannel = info.clientChannel
     this._peerAddress = info.address
-    this._keyPair = sodium.Key.Sign.fromSeed(
+    const keyPairHolder = {
+      publicKey: Buffer.alloc(sodium.crypto_sign_PUBLICKEYBYTES),
+      secretKey: Buffer.alloc(sodium.crypto_sign_SECRETKEYBYTES)
+    }
+    sodium.crypto_sign_seed_keypair(
+      keyPairHolder.publicKey,
+      keyPairHolder.secretKey,
       util.hmac(
         this._secret,
         'ilp-plugin-xrp-stateless' + this._peerAddress
-      ))
+      )
+    )
+    this._keyPair = keyPairHolder
 
     if (!this._xrpServer) {
       this._xrpServer = this._account.startsWith('test.')
@@ -191,8 +199,8 @@ class Plugin extends BtpPlugin {
       this._channel = await this._createOutgoingChannel()
 
       const encodedChannel = util.encodeChannelProof(this._channel, this._account)
-      const signer = new sodium.Sign(this._keyPair)
-      const channelSignature = (signer.sign(encodedChannel)).sign.slice(0, 64)
+      const channelSignature = Buffer.alloc(sodium.crypto_sign_BYTES)
+      sodium.crypto_sign_detached(channelSignature, encodedChannel, this._keyPair.secretKey)
 
       channelProtocolData.push({
         protocolName: 'channel',
@@ -438,12 +446,10 @@ class Plugin extends BtpPlugin {
 
       let isValid = false
       try {
-        isValid = sodium.Sign.verifyDetached(
-          {
-            sign: Buffer.from(this._lastClaim.signature, 'hex'),
-            publicKey: this._keyPair.publicKey.baseBuffer
-          },
-          encodedClaim
+        isValid = sodium.crypto_sign_verify_detached(
+          Buffer.from(this._lastClaim.signature, 'hex'),
+          encodedClaim,
+          this._keyPair.publicKey
         )
       } catch (err) {
         this._log.warn('verifying signature failed:', err.message)
@@ -461,10 +467,9 @@ class Plugin extends BtpPlugin {
     const amount = new BigNumber(this._lastClaim.amount).plus(transferAmount).toString()
     const newDropAmount = util.xrpToDrops(this.baseToXrp(amount))
     const newClaimEncoded = util.encodeClaim(newDropAmount, this._channel)
-    const signer = new sodium.Sign(this._keyPair)
-    const signature = (signer.sign(newClaimEncoded)).sign.slice(0, 64)
-      .toString('hex')
-      .toUpperCase()
+    let signature = Buffer.alloc(sodium.crypto_sign_BYTES)
+    sodium.crypto_sign_detached(signature, newClaimEncoded, this._keyPair.secretKey)
+    signature = signature.toString('hex').toUpperCase()
 
     const aboveThreshold = new BigNumber(this
       .xrpToBase(this._channelDetails.amount))
@@ -501,9 +506,8 @@ class Plugin extends BtpPlugin {
           this._funding = false
 
           const encodedChannel = util.encodeChannelProof(this._channel, this._account)
-          const signer = new sodium.Sign(this._keyPair)
-          const channelSignature = (signer.sign(encodedChannel)).sign.slice(0, 64)
-
+          const channelSignature = Buffer.alloc(sodium.crypto_sign_BYTES)
+          sodium.crypto_sign_detached(channelSignature, encodedChannel, this._keyPair.secretKey)
           // send a 'channel' call in order to refresh details
           await this._call(null, {
             type: BtpPacket.TYPE_MESSAGE,
@@ -577,11 +581,10 @@ class Plugin extends BtpPlugin {
 
       let isValid = false
       try {
-        isValid = sodium.Sign.verifyDetached(
-          {
-            sign: Buffer.from(signature, 'hex'),
-            publicKey: Buffer.from(this._paychan.publicKey.substring(2), 'hex')},
-          encodedClaim
+        isValid = sodium.crypto_sign_verify_detached(
+          Buffer.from(signature, 'hex'),
+          encodedClaim,
+          Buffer.from(this._paychan.publicKey.substring(2), 'hex')
         )
       } catch (err) {
         this._log.error('signature verification error. err=', err)

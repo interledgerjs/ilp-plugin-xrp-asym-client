@@ -8,7 +8,7 @@ const chai = require('chai')
 const chaiAsPromised = require('chai-as-promised')
 chai.use(chaiAsPromised)
 const assert = chai.assert
-const sodium = require('sodium')
+const sodium = require('sodium-universal')
 
 const {
   util
@@ -145,7 +145,10 @@ describe('pluginSpec', () => {
           publicKey: 'edabcdef'
         }
 
-        this.plugin._keyPair = {}
+        this.plugin._keyPair = {
+          publicKey: Buffer.alloc(sodium.crypto_sign_PUBLICKEYBYTES),
+          secretKey: Buffer.alloc(sodium.crypto_sign_SECRETKEYBYTES)
+        }
         this.plugin._funding = true
         this.plugin._channel = 'abcdef'
         this.plugin._clientChannel = 'abcdef'
@@ -225,7 +228,7 @@ describe('pluginSpec', () => {
       })
 
       it('should handle a claim', async function () {
-        this.sinon.stub(sodium.Sign, 'verifyDetached')
+        this.sinon.stub(sodium, 'crypto_sign_verify_detached')
           .returns(true)
         const encodeSpy = this.sinon.spy(util, 'encodeClaim')
 
