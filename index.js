@@ -412,6 +412,10 @@ class Plugin extends BtpPlugin {
   }
 
   async sendMoney (transferAmount) {
+    if (new BigNumber(transferAmount).isLessThan(0)) {
+      throw new Error('Cannot make a new claim which is lower than the last claim.')
+    }
+
     if (new BigNumber(transferAmount).isEqualTo(0)) {
       return
     }
